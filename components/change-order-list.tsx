@@ -28,6 +28,12 @@ type ChangeOrdersResponse = {
   change_orders?: ChangeOrder[];
 };
 
+type ApprovalLinkResponse = {
+  ok?: boolean;
+  message?: string;
+  approval_url?: string;
+};
+
 const currencyFormatter = new Intl.NumberFormat('en-US', {
   style: 'currency',
   currency: 'USD',
@@ -41,6 +47,12 @@ export function ChangeOrderList() {
   const [changeOrders, setChangeOrders] = useState<ChangeOrder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [generatingLinkId, setGeneratingLinkId] = useState<string | null>(null);
+  const [approvalLinks, setApprovalLinks] = useState<Record<string, string>>({});
+  const [actionError, setActionError] = useState<{ id: string; message: string } | null>(
+    null
+  );
+  const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -79,6 +91,67 @@ export function ChangeOrderList() {
       isMounted = false;
     };
   }, []);
+
+  async function handleGenerateApprovalLink(changeOrderId: string) {
+    setGeneratingLinkId(changeOrderId);
+    setActionError(null);
+    setCopiedMessageId(null);
+
+    try {
+      const response = await fetch(`/api/change-orders/${changeOrderId}/approval-link`, {
+        method: 'POST',
+      });
+      const result = (await response.json()) as ApprovalLinkResponse;
+
+      if (!response.ok) {
+        setActionError({
+          id: changeOrderId,
+          message: result.message ?? 'Something went wrong generating the approval link.',
+        });
+        return;
+      }
+
+      if (!result.approval_url) {
+        setActionError({
+          id: changeOrderId,
+          message: 'Something went wrong generating the approval link.',
+        });
+        return;
+      }
+
+      const fullUrl = `${window.location.origin}${result.approval_url}`;
+      setApprovalLinks((current) => ({
+        ...current,
+        [changeOrderId]: fullUrl,
+      }));
+    } catch {
+      setActionError({
+        id: changeOrderId,
+        message: 'Something went wrong generating the approval link.',
+      });
+    } finally {
+      setGeneratingLinkId(null);
+    }
+  }
+
+  async function handleCopyLink(changeOrderId: string) {
+    const link = approvalLinks[changeOrderId];
+
+    if (!link) {
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(link);
+      setCopiedMessageId(changeOrderId);
+      setActionError(null);
+    } catch {
+      setActionError({
+        id: changeOrderId,
+        message: 'Failed to copy approval link.',
+      });
+    }
+  }
 
   if (isLoading) {
     return (
@@ -165,7 +238,7 @@ export function ChangeOrderList() {
             </div>
           </dl>
 
-          <div className="mt-4">
+          <div className="mt-4 flex flex-wrap items-center gap-2">
             <a
               href={`/api/change-orders/${changeOrder.id}/pdf`}
               target="_blank"
@@ -174,7 +247,40 @@ export function ChangeOrderList() {
             >
               View PDF
             </a>
+
+            <button
+              type="button"
+              onClick={() => void handleGenerateApprovalLink(changeOrder.id)}
+              disabled={generatingLinkId === changeOrder.id}
+              className="inline-flex items-center rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {generatingLinkId === changeOrder.id
+                ? 'Generating...'
+                : 'Generate Approval Link'}
+            </button>
           </div>
+
+          {approvalLinks[changeOrder.id] ? (
+            <div className="mt-3 rounded-md border border-slate-200 bg-slate-50 p-3">
+              <p className="break-all text-xs text-slate-700">{approvalLinks[changeOrder.id]}</p>
+              <div className="mt-2 flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => void handleCopyLink(changeOrder.id)}
+                  className="inline-flex items-center rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50"
+                >
+                  Copy Link
+                </button>
+                {copiedMessageId === changeOrder.id ? (
+                  <p className="text-xs text-emerald-700">Approval link copied.</p>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
+
+          {actionError?.id === changeOrder.id ? (
+            <p className="mt-3 text-sm text-rose-700">{actionError.message}</p>
+          ) : null}
         </article>
       ))}
     </div>

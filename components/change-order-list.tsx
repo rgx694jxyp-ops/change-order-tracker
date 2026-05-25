@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 
+import { ChangeOrderAttachments } from '@/components/change-order-attachments';
+
 type ChangeOrder = {
   id: string;
   change_order_number: string | null;
@@ -281,6 +283,10 @@ export function ChangeOrderList() {
           {actionError?.id === changeOrder.id ? (
             <p className="mt-3 text-sm text-rose-700">{actionError.message}</p>
           ) : null}
+
+          <div className="mt-4">
+            <ChangeOrderAttachments changeOrderId={changeOrder.id} />
+          </div>
         </article>
       ))}
     </div>

@@ -2,11 +2,21 @@ import { NextResponse } from 'next/server';
 
 import { supabaseAdmin } from '@/lib/supabase/admin';
 
-// Temporary development route: remove or replace this after authentication is added.
+// Temporary development route. Do not use in production.
 const DEMO_COMPANY_ID = '00000000-0000-0000-0000-000000000001';
 const DEMO_COMPANY_NAME = 'Demo Contractor';
 
 export async function GET() {
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json(
+      {
+        ok: false,
+        message: 'Dev bootstrap route is disabled in production',
+      },
+      { status: 403 }
+    );
+  }
+
   const { data: existingCompany, error: lookupError } = await supabaseAdmin
     .from('companies')
     .select('*')

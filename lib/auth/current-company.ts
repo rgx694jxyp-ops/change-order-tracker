@@ -1,5 +1,6 @@
 import 'server-only';
 
+import { supabaseAdmin } from '@/lib/supabase/admin';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 
 export type CurrentCompanyContext = {
@@ -36,7 +37,7 @@ export async function getCurrentCompanyContext(): Promise<CurrentCompanyContextR
     };
   }
 
-  const { data: membership, error: membershipError } = await supabase
+  const { data: membership, error: membershipError } = await supabaseAdmin
     .from('company_memberships')
     .select('company_id, role')
     .eq('user_id', user.id)

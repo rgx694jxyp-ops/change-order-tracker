@@ -1,7 +1,17 @@
+import { supabase } from '@/lib/supabase/client';
+
 export default function HomePage() {
+  const supabaseConfigured = Boolean(supabase);
+
   return (
     <main className="min-h-screen bg-slate-950 text-white">
       <section className="mx-auto flex min-h-screen max-w-5xl flex-col items-center justify-center px-6 py-16 text-center">
+        {supabaseConfigured && (
+          <div className="mb-4 rounded-full border border-emerald-700/60 bg-emerald-900/30 px-3 py-1 text-xs text-emerald-300">
+            Supabase client configured
+          </div>
+        )}
+
         <div className="mb-6 rounded-full border border-slate-700 bg-slate-900 px-4 py-2 text-sm text-slate-300">
           Change Order & Job Cost Tracker
         </div>

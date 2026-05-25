@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 
+import { getCurrentCompanyContext } from '@/lib/auth/current-company';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 
-const DEMO_COMPANY_ID = '00000000-0000-0000-0000-000000000001';
 const VALID_JOB_STATUSES = ['active', 'completed', 'archived'] as const;
 
 type RouteContext = {
@@ -19,6 +19,20 @@ function normalizeOptionalString(value: unknown) {
 }
 
 export async function GET(_request: Request, context: RouteContext) {
+  const result = await getCurrentCompanyContext();
+
+  if (!result.ok) {
+    return NextResponse.json(
+      {
+        ok: false,
+        message: result.message,
+        ...(result.error ? { error: result.error } : {}),
+      },
+      { status: result.status }
+    );
+  }
+
+  const { companyId } = result.context;
   const { id } = await context.params;
 
   const { data, error } = await supabaseAdmin
@@ -27,7 +41,7 @@ export async function GET(_request: Request, context: RouteContext) {
       'id, company_id, customer_id, name, job_number, address, description, status, created_at, customers(name)'
     )
     .eq('id', id)
-    .eq('company_id', DEMO_COMPANY_ID)
+    .eq('company_id', companyId)
     .maybeSingle();
 
   if (error) {
@@ -55,6 +69,20 @@ export async function GET(_request: Request, context: RouteContext) {
 }
 
 export async function PATCH(request: Request, context: RouteContext) {
+  const result = await getCurrentCompanyContext();
+
+  if (!result.ok) {
+    return NextResponse.json(
+      {
+        ok: false,
+        message: result.message,
+        ...(result.error ? { error: result.error } : {}),
+      },
+      { status: result.status }
+    );
+  }
+
+  const { companyId } = result.context;
   const { id } = await context.params;
   const body = await request.json();
 
@@ -95,6 +123,34 @@ export async function PATCH(request: Request, context: RouteContext) {
     );
   }
 
+  const { data: customer, error: customerError } = await supabaseAdmin
+    .from('customers')
+    .select('id')
+    .eq('id', trimmedCustomerId)
+    .eq('company_id', companyId)
+    .maybeSingle();
+
+  if (customerError) {
+    return NextResponse.json(
+      {
+        ok: false,
+        message: 'Failed to update job',
+        error: customerError.message,
+      },
+      { status: 500 }
+    );
+  }
+
+  if (!customer) {
+    return NextResponse.json(
+      {
+        ok: false,
+        message: 'Customer not found',
+      },
+      { status: 404 }
+    );
+  }
+
   const { data, error } = await supabaseAdmin
     .from('jobs')
     .update({
@@ -107,7 +163,7 @@ export async function PATCH(request: Request, context: RouteContext) {
       updated_at: new Date().toISOString(),
     })
     .eq('id', id)
-    .eq('company_id', DEMO_COMPANY_ID)
+    .eq('company_id', companyId)
     .select(
       'id, company_id, customer_id, name, job_number, address, description, status, created_at, customers(name)'
     )
@@ -138,13 +194,27 @@ export async function PATCH(request: Request, context: RouteContext) {
 }
 
 export async function DELETE(_request: Request, context: RouteContext) {
+  const result = await getCurrentCompanyContext();
+
+  if (!result.ok) {
+    return NextResponse.json(
+      {
+        ok: false,
+        message: result.message,
+        ...(result.error ? { error: result.error } : {}),
+      },
+      { status: result.status }
+    );
+  }
+
+  const { companyId } = result.context;
   const { id } = await context.params;
 
   const { data, error } = await supabaseAdmin
     .from('jobs')
     .delete()
     .eq('id', id)
-    .eq('company_id', DEMO_COMPANY_ID)
+    .eq('company_id', companyId)
     .select('id')
     .maybeSingle();
 

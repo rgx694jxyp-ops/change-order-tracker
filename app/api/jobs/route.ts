@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 
+import { getCurrentCompanyContext } from '@/lib/auth/current-company';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 
-const DEMO_COMPANY_ID = '00000000-0000-0000-0000-000000000001';
 const VALID_JOB_STATUSES = ['active', 'completed', 'archived'] as const;
 
 function normalizeOptionalString(value: unknown) {
@@ -15,12 +15,27 @@ function normalizeOptionalString(value: unknown) {
 }
 
 export async function GET() {
+  const result = await getCurrentCompanyContext();
+
+  if (!result.ok) {
+    return NextResponse.json(
+      {
+        ok: false,
+        message: result.message,
+        ...(result.error ? { error: result.error } : {}),
+      },
+      { status: result.status }
+    );
+  }
+
+  const { companyId } = result.context;
+
   const { data, error } = await supabaseAdmin
     .from('jobs')
     .select(
       'id, company_id, customer_id, name, job_number, address, description, status, created_at, customers(name)'
     )
-    .eq('company_id', DEMO_COMPANY_ID)
+    .eq('company_id', companyId)
     .order('created_at', { ascending: false });
 
   if (error) {
@@ -38,6 +53,21 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const result = await getCurrentCompanyContext();
+
+  if (!result.ok) {
+    return NextResponse.json(
+      {
+        ok: false,
+        message: result.message,
+        ...(result.error ? { error: result.error } : {}),
+      },
+      { status: result.status }
+    );
+  }
+
+  const { companyId } = result.context;
+
   const body = await request.json();
   const trimmedCustomerId = typeof body.customer_id === 'string' ? body.customer_id.trim() : '';
   const trimmedName = typeof body.name === 'string' ? body.name.trim() : '';
@@ -76,10 +106,38 @@ export async function POST(request: Request) {
     );
   }
 
+  const { data: customer, error: customerError } = await supabaseAdmin
+    .from('customers')
+    .select('id')
+    .eq('id', trimmedCustomerId)
+    .eq('company_id', companyId)
+    .maybeSingle();
+
+  if (customerError) {
+    return NextResponse.json(
+      {
+        ok: false,
+        message: 'Failed to create job',
+        error: customerError.message,
+      },
+      { status: 500 }
+    );
+  }
+
+  if (!customer) {
+    return NextResponse.json(
+      {
+        ok: false,
+        message: 'Customer not found',
+      },
+      { status: 404 }
+    );
+  }
+
   const { data, error } = await supabaseAdmin
     .from('jobs')
     .insert({
-      company_id: DEMO_COMPANY_ID,
+      company_id: companyId,
       customer_id: trimmedCustomerId,
       name: trimmedName,
       job_number: normalizeOptionalString(body.job_number),

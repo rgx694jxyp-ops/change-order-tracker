@@ -1,5 +1,6 @@
 import { AppShell } from '@/components/app-shell';
 import { CustomerForm } from '@/components/customer-form';
+import { CustomerList } from '@/components/customer-list';
 
 export default function CustomersPage() {
   return (
@@ -17,12 +18,7 @@ export default function CustomersPage() {
 
         <CustomerForm />
 
-        <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-900">No customers yet</h2>
-          <p className="mt-2 text-sm text-slate-600 sm:text-base">
-            Customers will appear here once you start adding them.
-          </p>
-        </section>
+        <CustomerList />
       </div>
     </AppShell>
   );

@@ -164,6 +164,17 @@ export function ChangeOrderList() {
               </dd>
             </div>
           </dl>
+
+          <div className="mt-4">
+            <a
+              href={`/api/change-orders/${changeOrder.id}/pdf`}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+            >
+              View PDF
+            </a>
+          </div>
         </article>
       ))}
     </div>

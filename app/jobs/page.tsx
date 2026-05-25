@@ -1,5 +1,6 @@
 import { AppShell } from '@/components/app-shell';
 import { JobForm } from '@/components/job-form';
+import { JobList } from '@/components/job-list';
 
 export default function JobsPage() {
   return (
@@ -17,15 +18,7 @@ export default function JobsPage() {
 
         <JobForm />
 
-        <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-900">No jobs yet</h2>
-          <p className="mt-2 text-sm text-slate-600 sm:text-base">
-            Jobs will appear here once you start adding customer projects.
-          </p>
-          <p className="mt-4 text-xs text-slate-500 sm:text-sm">
-            Job forms will be added in the next milestone.
-          </p>
-        </section>
+        <JobList />
       </div>
     </AppShell>
   );

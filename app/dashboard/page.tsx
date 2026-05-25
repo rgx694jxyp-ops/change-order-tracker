@@ -12,6 +12,12 @@ export default function DashboardPage() {
           <p className="mt-2 text-sm text-slate-600 sm:text-base">
             Track change orders, approvals, and unbilled work from one place.
           </p>
+          <a
+            href="/api/export/change-orders"
+            className="mt-4 inline-flex items-center rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+          >
+            Export Change Orders CSV
+          </a>
         </header>
 
         <DashboardSummary />

@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
 
+import { getCurrentCompanyContext } from '@/lib/auth/current-company';
 import { supabaseAdmin } from '@/lib/supabase/admin';
-
-const DEMO_COMPANY_ID = '00000000-0000-0000-0000-000000000001';
 
 type RouteContext = {
   params: Promise<{ id: string }>;
@@ -18,13 +17,27 @@ function normalizeOptionalString(value: unknown) {
 }
 
 export async function GET(_request: Request, context: RouteContext) {
+  const result = await getCurrentCompanyContext();
+
+  if (!result.ok) {
+    return NextResponse.json(
+      {
+        ok: false,
+        message: result.message,
+        ...(result.error ? { error: result.error } : {}),
+      },
+      { status: result.status }
+    );
+  }
+
+  const { companyId } = result.context;
   const { id } = await context.params;
 
   const { data, error } = await supabaseAdmin
     .from('customers')
     .select('id, name, contact_name, email, phone, billing_address, notes, created_at')
     .eq('id', id)
-    .eq('company_id', DEMO_COMPANY_ID)
+    .eq('company_id', companyId)
     .maybeSingle();
 
   if (error) {
@@ -52,6 +65,20 @@ export async function GET(_request: Request, context: RouteContext) {
 }
 
 export async function PATCH(request: Request, context: RouteContext) {
+  const result = await getCurrentCompanyContext();
+
+  if (!result.ok) {
+    return NextResponse.json(
+      {
+        ok: false,
+        message: result.message,
+        ...(result.error ? { error: result.error } : {}),
+      },
+      { status: result.status }
+    );
+  }
+
+  const { companyId } = result.context;
   const { id } = await context.params;
   const body = await request.json();
   const trimmedName = typeof body.name === 'string' ? body.name.trim() : '';
@@ -78,7 +105,7 @@ export async function PATCH(request: Request, context: RouteContext) {
       updated_at: new Date().toISOString(),
     })
     .eq('id', id)
-    .eq('company_id', DEMO_COMPANY_ID)
+    .eq('company_id', companyId)
     .select('id, name, contact_name, email, phone, billing_address, notes, created_at')
     .maybeSingle();
 
@@ -107,13 +134,27 @@ export async function PATCH(request: Request, context: RouteContext) {
 }
 
 export async function DELETE(_request: Request, context: RouteContext) {
+  const result = await getCurrentCompanyContext();
+
+  if (!result.ok) {
+    return NextResponse.json(
+      {
+        ok: false,
+        message: result.message,
+        ...(result.error ? { error: result.error } : {}),
+      },
+      { status: result.status }
+    );
+  }
+
+  const { companyId } = result.context;
   const { id } = await context.params;
 
   const { data, error } = await supabaseAdmin
     .from('customers')
     .delete()
     .eq('id', id)
-    .eq('company_id', DEMO_COMPANY_ID)
+    .eq('company_id', companyId)
     .select('id')
     .maybeSingle();
 

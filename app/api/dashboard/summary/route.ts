@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
 
+import { getCurrentCompanyContext } from '@/lib/auth/current-company';
 import { supabaseAdmin } from '@/lib/supabase/admin';
-
-const DEMO_COMPANY_ID = '00000000-0000-0000-0000-000000000001';
 
 type ChangeOrderSummaryRow = {
   id: string;
@@ -21,10 +20,25 @@ function toSafeNumber(value: number | string | null | undefined) {
 }
 
 export async function GET() {
+  const result = await getCurrentCompanyContext();
+
+  if (!result.ok) {
+    return NextResponse.json(
+      {
+        ok: false,
+        message: result.message,
+        ...(result.error ? { error: result.error } : {}),
+      },
+      { status: result.status }
+    );
+  }
+
+  const { companyId } = result.context;
+
   const { data, error } = await supabaseAdmin
     .from('change_orders')
     .select('id, status, total_amount, created_at')
-    .eq('company_id', DEMO_COMPANY_ID);
+    .eq('company_id', companyId);
 
   if (error) {
     return NextResponse.json(

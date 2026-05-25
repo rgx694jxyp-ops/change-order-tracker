@@ -1,6 +1,5 @@
+import { getCurrentCompanyContext } from '@/lib/auth/current-company';
 import { supabaseAdmin } from '@/lib/supabase/admin';
-
-const DEMO_COMPANY_ID = '00000000-0000-0000-0000-000000000001';
 
 type CustomerRef = {
   name: string | null;
@@ -63,12 +62,27 @@ function toPlainNumber(value: number | string | null | undefined) {
 }
 
 export async function GET() {
+  const result = await getCurrentCompanyContext();
+
+  if (!result.ok) {
+    return Response.json(
+      {
+        ok: false,
+        message: result.message,
+        ...(result.error ? { error: result.error } : {}),
+      },
+      { status: result.status }
+    );
+  }
+
+  const { companyId } = result.context;
+
   const { data, error } = await supabaseAdmin
     .from('change_orders')
     .select(
       'id, change_order_number, title, description, labor_cost, material_cost, other_cost, markup_percent, tax_percent, subtotal, markup_amount, tax_amount, total_amount, status, created_at, customers(name), jobs(name, job_number)'
     )
-    .eq('company_id', DEMO_COMPANY_ID)
+    .eq('company_id', companyId)
     .order('created_at', { ascending: false });
 
   if (error) {

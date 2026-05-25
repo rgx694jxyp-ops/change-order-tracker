@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { supabase } from '@/lib/supabase/client';
 
 export default function HomePage() {
@@ -24,6 +25,13 @@ export default function HomePage() {
           A simple tool for small contractors to track change orders, job costs,
           approvals, and unbilled work without relying on messy spreadsheets.
         </p>
+
+        <Link
+          href="/dashboard"
+          className="mt-8 inline-flex items-center rounded-md bg-emerald-500 px-5 py-3 text-sm font-semibold text-slate-950 transition-colors hover:bg-emerald-400"
+        >
+          Open Dashboard
+        </Link>
 
         <div className="mt-10 grid w-full max-w-3xl gap-4 sm:grid-cols-3">
           <div className="rounded-2xl border border-slate-800 bg-slate-900 p-5 text-left">

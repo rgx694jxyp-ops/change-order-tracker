@@ -1,36 +1,122 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Change Order & Job Cost Tracker
 
-## Getting Started
+A lightweight MVP for small specialty contractors to manage customers, jobs, change orders, PDFs, public approval links, attachments, and CSV exports.
 
-First, run the development server:
+## Current MVP Features
+
+- Customer CRUD
+- Job CRUD
+- Change order creation and listing
+- Live change order total calculation
+- Dashboard summary totals
+- Change order PDF generation
+- Public approval links
+- Customer approval/rejection page
+- Attachment upload and viewing through Supabase Storage
+- Change order CSV export
+- Demo company bootstrap route
+
+## Tech Stack
+
+- Next.js App Router
+- TypeScript
+- Tailwind CSS
+- Supabase PostgreSQL
+- Supabase Storage
+- Supabase service role key for server-only admin routes
+- pdf-lib for PDF generation
+
+## Local Setup
+
+1. Install dependencies:
+
+```bash
+npm install
+```
+
+2. Create .env.local in the project root.
+
+3. Add these variables:
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+```
+
+4. Start local dev server:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+5. Open:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+http://localhost:3000
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Supabase Setup
 
-## Learn More
+- Run SQL files in order:
+	1. supabase/schema/001_initial_schema.sql
+	2. supabase/schema/002_attachments.sql
+- Create Supabase Storage bucket:
+	change-order-attachments
+- Current MVP uses a public bucket for simple attachment viewing.
 
-To learn more about Next.js, take a look at the following resources:
+## Demo Company
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- The MVP uses a fixed demo company id:
+	00000000-0000-0000-0000-000000000001
+- The bootstrap route creates Demo Contractor:
+	/api/dev/bootstrap
+- This is temporary and should be replaced when authentication is added.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Main Routes
 
-## Deploy on Vercel
+- /
+- /dashboard
+- /customers
+- /jobs
+- /change-orders
+- /settings
+- /approve/[token]
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Important API Routes
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- /api/dev/bootstrap
+- /api/customers
+- /api/customers/[id]
+- /api/jobs
+- /api/jobs/[id]
+- /api/change-orders
+- /api/change-orders/[id]/pdf
+- /api/change-orders/[id]/approval-link
+- /api/change-orders/[id]/attachments
+- /api/approvals/[token]
+- /api/dashboard/summary
+- /api/export/change-orders
+
+## Safety Notes
+
+- Do not commit .env.local
+- Do not expose SUPABASE_SERVICE_ROLE_KEY to client components
+- Current public storage bucket is for MVP only
+- Authentication and real tenant separation should be added before production
+- The demo company id should be replaced with real company/user ownership later
+
+## Useful Commands
+
+- npm run dev
+- npm run lint
+- git status
+
+## Next Improvements
+
+- Authentication
+- Real company settings
+- Email sending for approval links
+- Private storage with signed URLs
+- Better PDF template
+- Mark approved change orders as invoiced
+- Stripe billing
+- Deployment to Vercel

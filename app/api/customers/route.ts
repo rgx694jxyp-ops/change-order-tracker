@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
 
+import { getCurrentCompanyContext } from '@/lib/auth/current-company';
 import { supabaseAdmin } from '@/lib/supabase/admin';
-
-const DEMO_COMPANY_ID = '00000000-0000-0000-0000-000000000001';
 
 function normalizeOptionalString(value: unknown) {
   if (typeof value !== 'string') {
@@ -14,10 +13,25 @@ function normalizeOptionalString(value: unknown) {
 }
 
 export async function GET() {
+  const result = await getCurrentCompanyContext();
+
+  if (!result.ok) {
+    return NextResponse.json(
+      {
+        ok: false,
+        message: result.message,
+        ...(result.error ? { error: result.error } : {}),
+      },
+      { status: result.status }
+    );
+  }
+
+  const { companyId } = result.context;
+
   const { data, error } = await supabaseAdmin
     .from('customers')
     .select('id, name, contact_name, email, phone, billing_address, notes, created_at')
-    .eq('company_id', DEMO_COMPANY_ID)
+    .eq('company_id', companyId)
     .order('created_at', { ascending: false });
 
   if (error) {
@@ -35,6 +49,21 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const result = await getCurrentCompanyContext();
+
+  if (!result.ok) {
+    return NextResponse.json(
+      {
+        ok: false,
+        message: result.message,
+        ...(result.error ? { error: result.error } : {}),
+      },
+      { status: result.status }
+    );
+  }
+
+  const { companyId } = result.context;
+
   const body = await request.json();
   const trimmedName = typeof body.name === 'string' ? body.name.trim() : '';
 
@@ -51,7 +80,7 @@ export async function POST(request: Request) {
   const { data, error } = await supabaseAdmin
     .from('customers')
     .insert({
-      company_id: DEMO_COMPANY_ID,
+      company_id: companyId,
       name: trimmedName,
       contact_name: normalizeOptionalString(body.contact_name),
       email: normalizeOptionalString(body.email),

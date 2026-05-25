@@ -1,9 +1,8 @@
 import { NextResponse } from 'next/server';
 
 import { resend } from '@/lib/email/resend';
+import { getCurrentCompanyContext } from '@/lib/auth/current-company';
 import { supabaseAdmin } from '@/lib/supabase/admin';
-
-const DEMO_COMPANY_ID = '00000000-0000-0000-0000-000000000001';
 
 type RouteContext = {
   params: Promise<{ id: string }>;
@@ -63,6 +62,20 @@ function trimTrailingSlash(value: string) {
 }
 
 export async function POST(request: Request, context: RouteContext) {
+  const result = await getCurrentCompanyContext();
+
+  if (!result.ok) {
+    return NextResponse.json(
+      {
+        ok: false,
+        message: result.message,
+        ...(result.error ? { error: result.error } : {}),
+      },
+      { status: result.status }
+    );
+  }
+
+  const { companyId } = result.context;
   const { id } = await context.params;
   const body = (await request.json()) as {
     recipient_email?: string;
@@ -88,7 +101,7 @@ export async function POST(request: Request, context: RouteContext) {
       'id, change_order_number, title, total_amount, status, approval_token, customers(name, contact_name, email), jobs(name, job_number)'
     )
     .eq('id', id)
-    .eq('company_id', DEMO_COMPANY_ID)
+    .eq('company_id', companyId)
     .maybeSingle();
 
   if (error) {
@@ -128,7 +141,7 @@ export async function POST(request: Request, context: RouteContext) {
       updated_at: now,
     })
     .eq('id', id)
-    .eq('company_id', DEMO_COMPANY_ID);
+    .eq('company_id', companyId);
 
   if (updateError) {
     return NextResponse.json(

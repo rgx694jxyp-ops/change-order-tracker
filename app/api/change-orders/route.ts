@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 
+import { getCurrentCompanyContext } from '@/lib/auth/current-company';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 
-const DEMO_COMPANY_ID = '00000000-0000-0000-0000-000000000001';
 const VALID_CHANGE_ORDER_STATUSES = [
   'draft',
   'sent',
@@ -53,12 +53,27 @@ function roundToTwo(value: number) {
 }
 
 export async function GET() {
+  const result = await getCurrentCompanyContext();
+
+  if (!result.ok) {
+    return NextResponse.json(
+      {
+        ok: false,
+        message: result.message,
+        ...(result.error ? { error: result.error } : {}),
+      },
+      { status: result.status }
+    );
+  }
+
+  const { companyId } = result.context;
+
   const { data, error } = await supabaseAdmin
     .from('change_orders')
     .select(
       'id, company_id, customer_id, job_id, change_order_number, title, description, labor_cost, material_cost, other_cost, markup_percent, tax_percent, subtotal, markup_amount, tax_amount, total_amount, status, created_at, customers(name), jobs(name)'
     )
-    .eq('company_id', DEMO_COMPANY_ID)
+    .eq('company_id', companyId)
     .order('created_at', { ascending: false });
 
   if (error) {
@@ -76,6 +91,21 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const result = await getCurrentCompanyContext();
+
+  if (!result.ok) {
+    return NextResponse.json(
+      {
+        ok: false,
+        message: result.message,
+        ...(result.error ? { error: result.error } : {}),
+      },
+      { status: result.status }
+    );
+  }
+
+  const { companyId } = result.context;
+
   const body = await request.json();
 
   const trimmedCustomerId =
@@ -155,6 +185,62 @@ export async function POST(request: Request) {
     );
   }
 
+  const { data: customer, error: customerError } = await supabaseAdmin
+    .from('customers')
+    .select('id')
+    .eq('id', trimmedCustomerId)
+    .eq('company_id', companyId)
+    .maybeSingle();
+
+  if (customerError) {
+    return NextResponse.json(
+      {
+        ok: false,
+        message: 'Failed to create change order',
+        error: customerError.message,
+      },
+      { status: 500 }
+    );
+  }
+
+  if (!customer) {
+    return NextResponse.json(
+      {
+        ok: false,
+        message: 'Customer not found',
+      },
+      { status: 404 }
+    );
+  }
+
+  const { data: job, error: jobError } = await supabaseAdmin
+    .from('jobs')
+    .select('id')
+    .eq('id', trimmedJobId)
+    .eq('company_id', companyId)
+    .maybeSingle();
+
+  if (jobError) {
+    return NextResponse.json(
+      {
+        ok: false,
+        message: 'Failed to create change order',
+        error: jobError.message,
+      },
+      { status: 500 }
+    );
+  }
+
+  if (!job) {
+    return NextResponse.json(
+      {
+        ok: false,
+        message: 'Job not found',
+      },
+      { status: 404 }
+    );
+  }
+
   const laborCost = laborCostParsed.value;
   const materialCost = materialCostParsed.value;
   const otherCost = otherCostParsed.value;
@@ -176,7 +262,7 @@ export async function POST(request: Request) {
   const { data, error } = await supabaseAdmin
     .from('change_orders')
     .insert({
-      company_id: DEMO_COMPANY_ID,
+      company_id: companyId,
       customer_id: trimmedCustomerId,
       job_id: trimmedJobId,
       change_order_number: normalizeOptionalString(body.change_order_number),

@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
 
+import { getCurrentCompanyContext } from '@/lib/auth/current-company';
 import { supabaseAdmin } from '@/lib/supabase/admin';
-
-const DEMO_COMPANY_ID = '00000000-0000-0000-0000-000000000001';
 
 type RouteContext = {
   params: Promise<{ id: string }>;
@@ -17,13 +16,27 @@ type ChangeOrderApprovalRecord = {
 };
 
 export async function POST(_request: Request, context: RouteContext) {
+  const result = await getCurrentCompanyContext();
+
+  if (!result.ok) {
+    return NextResponse.json(
+      {
+        ok: false,
+        message: result.message,
+        ...(result.error ? { error: result.error } : {}),
+      },
+      { status: result.status }
+    );
+  }
+
+  const { companyId } = result.context;
   const { id } = await context.params;
 
   const { data: changeOrder, error: loadError } = await supabaseAdmin
     .from('change_orders')
     .select('id, change_order_number, title, status, approval_token')
     .eq('id', id)
-    .eq('company_id', DEMO_COMPANY_ID)
+    .eq('company_id', companyId)
     .maybeSingle();
 
   if (loadError) {
@@ -60,7 +73,7 @@ export async function POST(_request: Request, context: RouteContext) {
       updated_at: now,
     })
     .eq('id', id)
-    .eq('company_id', DEMO_COMPANY_ID)
+    .eq('company_id', companyId)
     .select('*')
     .single();
 

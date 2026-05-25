@@ -36,6 +36,18 @@ type ApprovalLinkResponse = {
   approval_url?: string;
 };
 
+type SendApprovalEmailResponse = {
+  ok?: boolean;
+  message?: string;
+  approval_url?: string;
+};
+
+type EmailFeedback = {
+  type: 'success' | 'error';
+  message: string;
+  approvalUrl?: string;
+};
+
 const currencyFormatter = new Intl.NumberFormat('en-US', {
   style: 'currency',
   currency: 'USD',
@@ -55,6 +67,11 @@ export function ChangeOrderList() {
     null
   );
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
+  const [emailInputs, setEmailInputs] = useState<Record<string, string>>({});
+  const [sendingEmailId, setSendingEmailId] = useState<string | null>(null);
+  const [emailFeedbackById, setEmailFeedbackById] = useState<Record<string, EmailFeedback>>(
+    {}
+  );
 
   useEffect(() => {
     let isMounted = true;
@@ -152,6 +169,90 @@ export function ChangeOrderList() {
         id: changeOrderId,
         message: 'Failed to copy approval link.',
       });
+    }
+  }
+
+  function handleEmailInputChange(changeOrderId: string, value: string) {
+    setEmailInputs((current) => ({
+      ...current,
+      [changeOrderId]: value,
+    }));
+
+    setEmailFeedbackById((current) => {
+      if (!current[changeOrderId]) {
+        return current;
+      }
+
+      const next = { ...current };
+      delete next[changeOrderId];
+      return next;
+    });
+  }
+
+  async function handleSendApprovalEmail(changeOrderId: string) {
+    const emailValue = (emailInputs[changeOrderId] ?? '').trim();
+
+    if (!emailValue) {
+      setEmailFeedbackById((current) => ({
+        ...current,
+        [changeOrderId]: {
+          type: 'error',
+          message: 'Enter an email address.',
+        },
+      }));
+      return;
+    }
+
+    setSendingEmailId(changeOrderId);
+
+    try {
+      const response = await fetch(`/api/change-orders/${changeOrderId}/send-approval-email`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          recipient_email: emailValue,
+          base_url: window.location.origin,
+        }),
+      });
+
+      const result = (await response.json()) as SendApprovalEmailResponse;
+
+      if (!response.ok) {
+        setEmailFeedbackById((current) => ({
+          ...current,
+          [changeOrderId]: {
+            type: 'error',
+            message: result.message ?? 'Something went wrong sending the approval email.',
+          },
+        }));
+        return;
+      }
+
+      const approvalUrl =
+        result.approval_url && result.approval_url.startsWith('/')
+          ? `${window.location.origin}${result.approval_url}`
+          : result.approval_url;
+
+      setEmailFeedbackById((current) => ({
+        ...current,
+        [changeOrderId]: {
+          type: 'success',
+          message: 'Approval email sent.',
+          approvalUrl,
+        },
+      }));
+    } catch {
+      setEmailFeedbackById((current) => ({
+        ...current,
+        [changeOrderId]: {
+          type: 'error',
+          message: 'Something went wrong sending the approval email.',
+        },
+      }));
+    } finally {
+      setSendingEmailId(null);
     }
   }
 
@@ -283,6 +384,49 @@ export function ChangeOrderList() {
           {actionError?.id === changeOrder.id ? (
             <p className="mt-3 text-sm text-rose-700">{actionError.message}</p>
           ) : null}
+
+          <div className="mt-4 rounded-md border border-slate-200 bg-slate-50 p-3">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <input
+                type="email"
+                placeholder="customer@example.com"
+                value={emailInputs[changeOrder.id] ?? ''}
+                onChange={(event) =>
+                  handleEmailInputChange(changeOrder.id, event.target.value)
+                }
+                className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
+              />
+              <button
+                type="button"
+                onClick={() => void handleSendApprovalEmail(changeOrder.id)}
+                disabled={sendingEmailId === changeOrder.id}
+                className="inline-flex items-center justify-center rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {sendingEmailId === changeOrder.id
+                  ? 'Sending...'
+                  : 'Send Approval Email'}
+              </button>
+            </div>
+
+            {emailFeedbackById[changeOrder.id] ? (
+              <div className="mt-2">
+                <p
+                  className={`text-sm ${
+                    emailFeedbackById[changeOrder.id].type === 'error'
+                      ? 'text-rose-700'
+                      : 'text-emerald-700'
+                  }`}
+                >
+                  {emailFeedbackById[changeOrder.id].message}
+                </p>
+                {emailFeedbackById[changeOrder.id].approvalUrl ? (
+                  <p className="mt-1 break-all text-xs text-slate-700">
+                    {emailFeedbackById[changeOrder.id].approvalUrl}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
 
           <div className="mt-4">
             <ChangeOrderAttachments changeOrderId={changeOrder.id} />

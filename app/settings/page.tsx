@@ -1,10 +1,12 @@
 import { AppShell } from '@/components/app-shell';
 
 const setupItems = [
-  'Company profile',
-  'Default markup percentage',
-  'Default tax percentage',
-  'PDF template details',
+  { label: 'Company name', value: 'Demo Contractor' },
+  { label: 'Default markup percentage', value: '15%' },
+  { label: 'Default tax percentage', value: '0%' },
+  { label: 'Attachment storage', value: 'Supabase Storage' },
+  { label: 'Approval links', value: 'Public token links' },
+  { label: 'CSV export', value: 'Enabled' },
 ];
 
 export default function SettingsPage() {
@@ -27,20 +29,18 @@ export default function SettingsPage() {
           <ul className="mt-4 divide-y divide-slate-200 rounded-md border border-slate-200 bg-slate-50">
             {setupItems.map((item) => (
               <li
-                key={item}
+                key={item.label}
                 className="flex items-center justify-between px-4 py-3 text-sm text-slate-700"
               >
-                <span>{item}</span>
-                <span className="rounded-full border border-slate-300 bg-white px-2 py-0.5 text-xs text-slate-500">
-                  Placeholder
-                </span>
+                <span className="font-medium text-slate-700">{item.label}</span>
+                <span className="text-right text-slate-600">{item.value}</span>
               </li>
             ))}
           </ul>
 
           <p className="mt-4 text-xs text-slate-500 sm:text-sm">
-            Settings forms will be added after the core customer, job, and change
-            order workflow is working.
+            Company profile editing, authentication, and billing settings will be
+            added after the MVP workflow is complete.
           </p>
         </section>
       </div>

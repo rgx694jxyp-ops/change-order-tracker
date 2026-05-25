@@ -1,8 +1,7 @@
 import { PDFDocument, PDFFont, StandardFonts, rgb } from 'pdf-lib';
 
+import { getCurrentCompanyContext } from '@/lib/auth/current-company';
 import { supabaseAdmin } from '@/lib/supabase/admin';
-
-const DEMO_COMPANY_ID = '00000000-0000-0000-0000-000000000001';
 
 type CustomerInfo = {
   name: string | null;
@@ -123,6 +122,20 @@ function drawWrappedText(options: {
 }
 
 export async function GET(_request: Request, context: RouteContext) {
+  const result = await getCurrentCompanyContext();
+
+  if (!result.ok) {
+    return Response.json(
+      {
+        ok: false,
+        message: result.message,
+        ...(result.error ? { error: result.error } : {}),
+      },
+      { status: result.status }
+    );
+  }
+
+  const { companyId } = result.context;
   const { id } = await context.params;
 
   const { data, error } = await supabaseAdmin
@@ -131,7 +144,7 @@ export async function GET(_request: Request, context: RouteContext) {
       'id, change_order_number, title, description, labor_cost, material_cost, other_cost, markup_percent, tax_percent, subtotal, markup_amount, tax_amount, total_amount, status, created_at, customers(name, contact_name, email, phone, billing_address), jobs(name, job_number, address)'
     )
     .eq('id', id)
-    .eq('company_id', DEMO_COMPANY_ID)
+    .eq('company_id', companyId)
     .maybeSingle();
 
   if (error) {

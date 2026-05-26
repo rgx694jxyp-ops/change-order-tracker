@@ -1,12 +1,6 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 
-const protectedPagePaths = ['/dashboard', '/customers', '/jobs', '/change-orders', '/settings'];
-
-function isProtectedPath(pathname: string) {
-  return protectedPagePaths.some((path) => pathname === path || pathname.startsWith(`${path}/`));
-}
-
 export async function proxy(request: NextRequest) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -42,18 +36,10 @@ export async function proxy(request: NextRequest) {
     },
   });
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!isProtectedPath(pathname)) {
-    return response;
-  }
-
-  if (!user) {
-    const loginUrl = new URL('/login', request.url);
-    loginUrl.searchParams.set('next', pathname);
-    return NextResponse.redirect(loginUrl);
+  try {
+    await supabase.auth.getUser();
+  } catch {
+    return NextResponse.next();
   }
 
   return response;

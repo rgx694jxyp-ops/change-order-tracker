@@ -41,8 +41,8 @@ type ChangeOrderPdfData = {
   total_amount: number | string | null;
   status: string;
   created_at: string;
-  customers: CustomerInfo | null;
-  jobs: JobInfo | null;
+  customers: CustomerInfo | CustomerInfo[] | null;
+  jobs: JobInfo | JobInfo[] | null;
 };
 
 type RouteContext = {
@@ -86,6 +86,11 @@ function formatDateTime(value: string | null | undefined) {
 
 function safeText(value: string | null | undefined) {
   return value && value.trim().length > 0 ? value : '—';
+}
+
+function firstOrNull<T>(value: T | T[] | null | undefined): T | null {
+  if (Array.isArray(value)) return value[0] ?? null;
+  return value ?? null;
 }
 
 function sanitizeFilenamePart(value: string) {
@@ -207,10 +212,10 @@ export async function GET(_request: Request, context: RouteContext) {
     );
   }
 
-  const changeOrder = data as ChangeOrderPdfData;
+  const changeOrder = data as unknown as ChangeOrderPdfData;
   const companyInfo = company as CompanyInfo;
-  const customer = changeOrder.customers;
-  const job = changeOrder.jobs;
+  const customer = firstOrNull(changeOrder.customers);
+  const job = firstOrNull(changeOrder.jobs);
 
   const pdfDoc = await PDFDocument.create();
   const page = pdfDoc.addPage([612, 792]);
@@ -416,10 +421,11 @@ export async function GET(_request: Request, context: RouteContext) {
   });
 
   const pdfBytes = await pdfDoc.save();
+  const pdfArrayBuffer = new Uint8Array(pdfBytes).buffer;
   const filePart = sanitizeFilenamePart(changeOrder.change_order_number || changeOrder.id);
   const fileName = `change-order-${filePart}.pdf`;
 
-  return new Response(pdfBytes, {
+  return new Response(pdfArrayBuffer, {
     headers: {
       'Content-Type': 'application/pdf',
       'Content-Disposition': `inline; filename="${fileName}"`,

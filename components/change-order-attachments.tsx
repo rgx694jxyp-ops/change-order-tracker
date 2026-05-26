@@ -11,6 +11,12 @@ type Attachment = {
   created_at: string;
 };
 
+type SignedUrlResponse = {
+  ok?: boolean;
+  message?: string;
+  signed_url?: string;
+};
+
 type AttachmentsResponse = {
   ok?: boolean;
   message?: string;
@@ -58,6 +64,7 @@ export function ChangeOrderAttachments({ changeOrderId }: ChangeOrderAttachments
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
+  const [openingAttachmentId, setOpeningAttachmentId] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [uploadErrorMessage, setUploadErrorMessage] = useState<string | null>(null);
@@ -143,6 +150,35 @@ export function ChangeOrderAttachments({ changeOrderId }: ChangeOrderAttachments
     }
   }
 
+  async function handleOpenAttachment(attachment: Attachment) {
+    setErrorMessage(null);
+    setOpeningAttachmentId(attachment.id);
+
+    try {
+      const response = await fetch(`/api/attachments/${attachment.id}/signed-url`, {
+        method: 'POST',
+      });
+
+      const result = (await response.json()) as SignedUrlResponse;
+
+      if (!response.ok || !result.ok) {
+        setErrorMessage(result.message ?? 'Could not open attachment.');
+        return;
+      }
+
+      if (!result.signed_url) {
+        setErrorMessage('Could not open attachment.');
+        return;
+      }
+
+      window.open(result.signed_url, '_blank', 'noopener,noreferrer');
+    } catch {
+      setErrorMessage('Could not open attachment.');
+    } finally {
+      setOpeningAttachmentId(null);
+    }
+  }
+
   return (
     <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -197,16 +233,14 @@ export function ChangeOrderAttachments({ changeOrderId }: ChangeOrderAttachments
                   <span>{formatFileSize(attachment.file_size_bytes)}</span>
                 ) : null}
                 <span>{formatDateTime(attachment.created_at)}</span>
-                {attachment.public_url ? (
-                  <a
-                    href={attachment.public_url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="font-medium text-slate-800 underline underline-offset-2"
-                  >
-                    Open
-                  </a>
-                ) : null}
+                <button
+                  type="button"
+                  onClick={() => void handleOpenAttachment(attachment)}
+                  disabled={openingAttachmentId === attachment.id}
+                  className="font-medium text-slate-800 underline underline-offset-2 disabled:cursor-not-allowed disabled:no-underline disabled:opacity-60"
+                >
+                  {openingAttachmentId === attachment.id ? 'Opening...' : 'Open'}
+                </button>
               </div>
             </li>
           ))}

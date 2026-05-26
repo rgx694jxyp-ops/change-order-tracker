@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState } from 'react';
+import { Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 
@@ -24,97 +24,9 @@ export default function LoginPage() {
 
 function LoginFormContent() {
   const searchParams = useSearchParams();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('');
-
-  async function waitForServerAuth() {
-    for (let attempt = 0; attempt < 10; attempt += 1) {
-      const response = await fetch('/api/auth/me', {
-        credentials: 'same-origin',
-        cache: 'no-store',
-      });
-
-      const result = await response.json();
-
-      if (response.ok && result?.authenticated === true) {
-        return true;
-      }
-
-      await new Promise((resolve) => window.setTimeout(resolve, 150));
-    }
-
-    return false;
-  }
-
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setLoading(true);
-    setErrorMessage('');
-
-    const nextParam = searchParams.get('next');
-    const redirectTarget = isSafeInternalPath(nextParam) ? nextParam : '/dashboard';
-
-    const response = await fetch('/api/auth/sign-in', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      credentials: 'same-origin',
-      cache: 'no-store',
-      redirect: 'manual',
-      body: JSON.stringify({
-        email,
-        password,
-        next: redirectTarget,
-      }),
-    });
-
-    if (response.status === 303 || response.type === 'opaqueredirect') {
-      const isAuthenticated = await waitForServerAuth();
-      if (!isAuthenticated) {
-        setErrorMessage('Signed in, but the session was not ready. Please try again.');
-        setLoading(false);
-        return;
-      }
-
-      window.location.assign(redirectTarget);
-      return;
-    }
-
-    if (response.redirected) {
-      const isAuthenticated = await waitForServerAuth();
-      if (!isAuthenticated) {
-        setErrorMessage('Signed in, but the session was not ready. Please try again.');
-        setLoading(false);
-        return;
-      }
-
-      window.location.assign(redirectTarget);
-      return;
-    }
-
-    const result = (await response.json()) as {
-      ok?: boolean;
-      message?: string;
-    };
-
-    if (!response.ok || !result.ok) {
-      setErrorMessage(result.message || 'Unable to sign in.');
-      setLoading(false);
-      return;
-    }
-
-    const isAuthenticated = await waitForServerAuth();
-    if (!isAuthenticated) {
-      setErrorMessage('Signed in, but the session was not ready. Please try again.');
-      setLoading(false);
-      return;
-    }
-
-    window.location.assign(redirectTarget);
-  }
+  const nextParam = searchParams.get('next');
+  const redirectTarget = isSafeInternalPath(nextParam) ? nextParam : '/dashboard';
+  const errorMessage = searchParams.get('error');
 
   return (
     <main className="min-h-screen bg-slate-950 px-6 py-12 text-slate-100">
@@ -127,16 +39,16 @@ function LoginFormContent() {
             </p>
           </div>
 
-          <form className="space-y-4" onSubmit={handleSubmit}>
+          <form className="space-y-4" method="post" action="/api/auth/sign-in">
+            <input type="hidden" name="next" value={redirectTarget} />
             <div>
               <label className="mb-2 block text-sm font-medium text-slate-200" htmlFor="email">
                 Email
               </label>
               <input
                 id="email"
+                name="email"
                 type="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
                 className="w-full rounded-xl border border-white/10 bg-slate-900/80 px-4 py-3 text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/30"
                 placeholder="name@company.com"
                 autoComplete="email"
@@ -150,9 +62,8 @@ function LoginFormContent() {
               </label>
               <input
                 id="password"
+                name="password"
                 type="password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
                 className="w-full rounded-xl border border-white/10 bg-slate-900/80 px-4 py-3 text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/30"
                 placeholder="••••••••"
                 autoComplete="current-password"
@@ -168,10 +79,9 @@ function LoginFormContent() {
 
             <button
               type="submit"
-              disabled={loading}
               className="inline-flex w-full items-center justify-center rounded-xl bg-cyan-400 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-70"
             >
-              {loading ? 'Signing in...' : 'Sign in'}
+              Sign in
             </button>
           </form>
 

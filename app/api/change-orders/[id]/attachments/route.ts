@@ -147,10 +147,6 @@ export async function POST(request: Request, context: RouteContext) {
     );
   }
 
-  const {
-    data: { publicUrl },
-  } = supabaseAdmin.storage.from(ATTACHMENTS_BUCKET).getPublicUrl(storagePath);
-
   const { data: attachment, error: insertError } = await supabaseAdmin
     .from('attachments')
     .insert({
@@ -161,7 +157,7 @@ export async function POST(request: Request, context: RouteContext) {
       file_size_bytes: file.size,
       storage_bucket: ATTACHMENTS_BUCKET,
       storage_path: storagePath,
-      public_url: publicUrl,
+      public_url: null,
       uploaded_by: 'demo-user',
     })
     .select('*')

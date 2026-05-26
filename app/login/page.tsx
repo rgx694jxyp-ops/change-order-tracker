@@ -2,7 +2,7 @@
 
 import { Suspense, useState } from 'react';
 import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 
 function isSafeInternalPath(path: string | null | undefined): path is string {
   return typeof path === 'string' && path.startsWith('/') && !path.startsWith('//');
@@ -23,12 +23,32 @@ export default function LoginPage() {
 }
 
 function LoginFormContent() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+
+  async function waitForServerAuth() {
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const response = await fetch('/api/auth/me', {
+        credentials: 'same-origin',
+        cache: 'no-store',
+      });
+
+      const result = (await response.json()) as {
+        authenticated?: boolean;
+      };
+
+      if (response.ok && result?.authenticated === true) {
+        return true;
+      }
+
+      await new Promise((resolve) => window.setTimeout(resolve, 150));
+    }
+
+    return false;
+  }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -59,11 +79,18 @@ function LoginFormContent() {
       return;
     }
 
-    router.refresh();
+    const isAuthenticated = await waitForServerAuth();
+    if (!isAuthenticated) {
+      setErrorMessage('Signed in, but the session was not ready. Please try again.');
+      setLoading(false);
+      return;
+    }
 
+    let target = '/dashboard';
     const nextParam = searchParams.get('next');
     if (isSafeInternalPath(nextParam)) {
-      router.push(nextParam);
+      target = nextParam;
+      window.location.assign(target);
       return;
     }
 
@@ -78,14 +105,13 @@ function LoginFormContent() {
       };
 
       if (response.ok && result.ok && isSafeInternalPath(result.next)) {
-        router.push(result.next);
-        return;
+        target = result.next;
       }
     } catch {
       // Fall back to dashboard when landing resolution fails.
     }
 
-    router.push('/dashboard');
+    window.location.assign(target);
   }
 
   return (

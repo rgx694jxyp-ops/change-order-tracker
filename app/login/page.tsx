@@ -29,31 +29,13 @@ function LoginFormContent() {
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
-  async function waitForServerAuth() {
-    for (let attempt = 0; attempt < 5; attempt += 1) {
-      const response = await fetch('/api/auth/me', {
-        credentials: 'same-origin',
-        cache: 'no-store',
-      });
-
-      const result = (await response.json()) as {
-        authenticated?: boolean;
-      };
-
-      if (response.ok && result?.authenticated === true) {
-        return true;
-      }
-
-      await new Promise((resolve) => window.setTimeout(resolve, 150));
-    }
-
-    return false;
-  }
-
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setLoading(true);
     setErrorMessage('');
+
+    const nextParam = searchParams.get('next');
+    const redirectTarget = isSafeInternalPath(nextParam) ? nextParam : '/dashboard';
 
     const response = await fetch('/api/auth/sign-in', {
       method: 'POST',
@@ -62,11 +44,23 @@ function LoginFormContent() {
       },
       credentials: 'same-origin',
       cache: 'no-store',
+      redirect: 'manual',
       body: JSON.stringify({
         email,
         password,
+        next: redirectTarget,
       }),
     });
+
+    if (response.status === 303 || response.type === 'opaqueredirect') {
+      window.location.assign(redirectTarget);
+      return;
+    }
+
+    if (response.redirected) {
+      window.location.assign(response.url);
+      return;
+    }
 
     const result = (await response.json()) as {
       ok?: boolean;
@@ -79,39 +73,7 @@ function LoginFormContent() {
       return;
     }
 
-    const isAuthenticated = await waitForServerAuth();
-    if (!isAuthenticated) {
-      setErrorMessage('Signed in, but the session was not ready. Please try again.');
-      setLoading(false);
-      return;
-    }
-
-    let target = '/dashboard';
-    const nextParam = searchParams.get('next');
-    if (isSafeInternalPath(nextParam)) {
-      target = nextParam;
-      window.location.assign(target);
-      return;
-    }
-
-    try {
-      const response = await fetch('/api/auth/landing', {
-        credentials: 'same-origin',
-        cache: 'no-store',
-      });
-      const result = (await response.json()) as {
-        ok?: boolean;
-        next?: string;
-      };
-
-      if (response.ok && result.ok && isSafeInternalPath(result.next)) {
-        target = result.next;
-      }
-    } catch {
-      // Fall back to dashboard when landing resolution fails.
-    }
-
-    window.location.assign(target);
+    window.location.assign(redirectTarget);
   }
 
   return (

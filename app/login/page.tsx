@@ -6,6 +6,10 @@ import { useRouter, useSearchParams } from 'next/navigation';
 
 import { supabase } from '@/lib/supabase/client';
 
+function isSafeInternalPath(path: string | null | undefined) {
+  return Boolean(path && path.startsWith('/') && !path.startsWith('//'));
+}
+
 export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -31,11 +35,27 @@ export default function LoginPage() {
     }
 
     const nextParam = searchParams.get('next');
-    const redirectPath =
-      nextParam && nextParam.startsWith('/') && !nextParam.startsWith('//')
-        ? nextParam
-        : '/dashboard';
-    router.push(redirectPath);
+    if (isSafeInternalPath(nextParam)) {
+      router.push(nextParam);
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/auth/landing');
+      const result = (await response.json()) as {
+        ok?: boolean;
+        next?: string;
+      };
+
+      if (response.ok && result.ok && isSafeInternalPath(result.next)) {
+        router.push(result.next);
+        return;
+      }
+    } catch {
+      // Fall back to dashboard when landing resolution fails.
+    }
+
+    router.push('/dashboard');
   }
 
   return (

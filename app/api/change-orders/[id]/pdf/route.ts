@@ -17,6 +17,14 @@ type JobInfo = {
   address: string | null;
 };
 
+type CompanyInfo = {
+  name: string | null;
+  phone: string | null;
+  email: string | null;
+  address: string | null;
+  billing_email: string | null;
+};
+
 type ChangeOrderPdfData = {
   id: string;
   change_order_number: string | null;
@@ -61,19 +69,23 @@ function formatMoney(value: number | string | null | undefined) {
 
 function formatDateTime(value: string | null | undefined) {
   if (!value) {
-    return 'Unknown';
+    return '—';
   }
 
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) {
-    return 'Unknown';
+    return '—';
   }
 
-  return parsed.toLocaleString('en-US');
+  return parsed.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
 }
 
 function safeText(value: string | null | undefined) {
-  return value && value.trim().length > 0 ? value : 'N/A';
+  return value && value.trim().length > 0 ? value : '—';
 }
 
 function sanitizeFilenamePart(value: string) {
@@ -168,7 +180,35 @@ export async function GET(_request: Request, context: RouteContext) {
     );
   }
 
+  const { data: company, error: companyError } = await supabaseAdmin
+    .from('companies')
+    .select('name, phone, email, address, billing_email')
+    .eq('id', companyId)
+    .maybeSingle();
+
+  if (companyError) {
+    return Response.json(
+      {
+        ok: false,
+        message: 'Failed to load company details',
+        error: companyError.message,
+      },
+      { status: 500 }
+    );
+  }
+
+  if (!company) {
+    return Response.json(
+      {
+        ok: false,
+        message: 'Company not found',
+      },
+      { status: 404 }
+    );
+  }
+
   const changeOrder = data as ChangeOrderPdfData;
+  const companyInfo = company as CompanyInfo;
   const customer = changeOrder.customers;
   const job = changeOrder.jobs;
 
@@ -183,79 +223,146 @@ export async function GET(_request: Request, context: RouteContext) {
   const contentWidth = width - margin * 2;
   let cursorY = height - margin;
 
-  function drawLabelValue(label: string, value: string) {
-    page.drawText(`${label}: ${value}`, {
-      x: margin,
-      y: cursorY,
+  function drawTextLine(text: string, x: number, y: number, isBold = false, size = 11) {
+    page.drawText(text, {
+      x,
+      y,
+      size,
+      font: isBold ? helveticaBold : helvetica,
+      color: rgb(0.1, 0.1, 0.1),
+    });
+  }
+
+  function drawLabelValue(label: string, value: string, x = margin, y = cursorY) {
+    page.drawText(label, {
+      x,
+      y,
+      size: 10,
+      font: helveticaBold,
+      color: rgb(0.35, 0.35, 0.35),
+    });
+
+    page.drawText(value, {
+      x,
+      y: y - 12,
       size: 11,
       font: helvetica,
       color: rgb(0.1, 0.1, 0.1),
     });
+  }
+
+  function drawSectionTitle(title: string) {
+    page.drawText(title, {
+      x: margin,
+      y: cursorY,
+      size: 12,
+      font: helveticaBold,
+      color: rgb(0.1, 0.1, 0.1),
+    });
+
+    cursorY -= 8;
+    page.drawLine({
+      start: { x: margin, y: cursorY },
+      end: { x: width - margin, y: cursorY },
+      thickness: 0.8,
+      color: rgb(0.82, 0.82, 0.82),
+    });
     cursorY -= 16;
   }
 
-  page.drawText('Change Order', {
-    x: margin,
-    y: cursorY,
-    size: 26,
-    font: helveticaBold,
-    color: rgb(0.1, 0.1, 0.1),
-  });
+  function drawCostRow(label: string, value: string, isTotal = false) {
+    const rowHeight = 20;
+    const rowTop = cursorY;
+
+    if (isTotal) {
+      page.drawRectangle({
+        x: margin,
+        y: rowTop - rowHeight + 4,
+        width: contentWidth,
+        height: rowHeight,
+        color: rgb(0.93, 0.95, 1),
+      });
+    }
+
+    page.drawText(label, {
+      x: margin,
+      y: rowTop - 10,
+      size: isTotal ? 12 : 11,
+      font: isTotal ? helveticaBold : helvetica,
+      color: rgb(0.1, 0.1, 0.1),
+    });
+
+    const valueWidth = (isTotal ? helveticaBold : helvetica).widthOfTextAtSize(
+      value,
+      isTotal ? 12 : 11
+    );
+    page.drawText(value, {
+      x: width - margin - valueWidth,
+      y: rowTop - 10,
+      size: isTotal ? 12 : 11,
+      font: isTotal ? helveticaBold : helvetica,
+      color: rgb(0.1, 0.1, 0.1),
+    });
+
+    cursorY -= rowHeight;
+
+    if (!isTotal) {
+      page.drawLine({
+        start: { x: margin, y: cursorY + 4 },
+        end: { x: width - margin, y: cursorY + 4 },
+        thickness: 0.5,
+        color: rgb(0.9, 0.9, 0.9),
+      });
+    }
+  }
+
+  drawTextLine('CHANGE ORDER', margin, cursorY, true, 26);
   cursorY -= 30;
 
-  page.drawText('Demo Contractor', {
-    x: margin,
-    y: cursorY,
-    size: 12,
-    font: helvetica,
-    color: rgb(0.2, 0.2, 0.2),
-  });
-  cursorY -= 24;
+  drawTextLine(safeText(companyInfo.name), margin, cursorY, true, 12);
+  cursorY -= 16;
 
-  drawLabelValue('Change Order Number', safeText(changeOrder.change_order_number));
+  if (safeText(companyInfo.address) !== '—') {
+    drawTextLine(safeText(companyInfo.address), margin, cursorY);
+    cursorY -= 14;
+  }
+
+  const headerContactParts = [safeText(companyInfo.phone), safeText(companyInfo.email)].filter(
+    (part) => part !== '—'
+  );
+  if (headerContactParts.length > 0) {
+    drawTextLine(headerContactParts.join(' | '), margin, cursorY);
+    cursorY -= 16;
+  }
+
+  cursorY -= 6;
+
+  drawSectionTitle('Metadata');
+  drawLabelValue('Change Order #', safeText(changeOrder.change_order_number));
+  drawLabelValue('Status', safeText(changeOrder.status), margin + contentWidth / 2, cursorY);
+  cursorY -= 28;
+  drawLabelValue('Created date', formatDateTime(changeOrder.created_at));
+  cursorY -= 30;
+
+  drawSectionTitle('Customer and Job');
+  drawLabelValue('Customer name', safeText(customer?.name));
+  drawLabelValue('Job name', safeText(job?.name), margin + contentWidth / 2, cursorY);
+  cursorY -= 28;
+  drawLabelValue('Job address', safeText(job?.address));
+  cursorY -= 28;
+
+  drawSectionTitle('Change Details');
   drawLabelValue('Title', safeText(changeOrder.title));
-  drawLabelValue('Status', safeText(changeOrder.status));
-  drawLabelValue('Created', formatDateTime(changeOrder.created_at));
-  cursorY -= 8;
-
-  page.drawText('Customer Information', {
-    x: margin,
-    y: cursorY,
-    size: 13,
-    font: helveticaBold,
-    color: rgb(0.1, 0.1, 0.1),
-  });
-  cursorY -= 18;
-
-  drawLabelValue('Name', safeText(customer?.name));
-  drawLabelValue('Contact', safeText(customer?.contact_name));
-  drawLabelValue('Email', safeText(customer?.email));
-  drawLabelValue('Phone', safeText(customer?.phone));
-  drawLabelValue('Billing Address', safeText(customer?.billing_address));
-  cursorY -= 8;
-
-  page.drawText('Job Information', {
-    x: margin,
-    y: cursorY,
-    size: 13,
-    font: helveticaBold,
-    color: rgb(0.1, 0.1, 0.1),
-  });
-  cursorY -= 18;
-
-  drawLabelValue('Job Name', safeText(job?.name));
-  drawLabelValue('Job Number', safeText(job?.job_number));
-  drawLabelValue('Job Address', safeText(job?.address));
-  cursorY -= 8;
+  cursorY -= 28;
 
   page.drawText('Description', {
     x: margin,
     y: cursorY,
-    size: 13,
+    size: 10,
     font: helveticaBold,
-    color: rgb(0.1, 0.1, 0.1),
+    color: rgb(0.35, 0.35, 0.35),
   });
-  cursorY -= 16;
+  cursorY -= 14;
 
   cursorY = drawWrappedText({
     text: safeText(changeOrder.description),
@@ -279,30 +386,33 @@ export async function GET(_request: Request, context: RouteContext) {
 
   cursorY -= 8;
 
-  page.drawText('Cost Breakdown', {
-    x: margin,
-    y: cursorY,
-    size: 13,
-    font: helveticaBold,
-    color: rgb(0.1, 0.1, 0.1),
+  drawSectionTitle('Cost Breakdown');
+  drawCostRow('Labor', formatMoney(changeOrder.labor_cost));
+  drawCostRow('Materials', formatMoney(changeOrder.material_cost));
+  drawCostRow('Other', formatMoney(changeOrder.other_cost));
+  drawCostRow('Subtotal', formatMoney(changeOrder.subtotal));
+  drawCostRow('Markup %', `${toNumber(changeOrder.markup_percent).toFixed(2)}%`);
+  drawCostRow('Markup Amount', formatMoney(changeOrder.markup_amount));
+  drawCostRow('Tax %', `${toNumber(changeOrder.tax_percent).toFixed(2)}%`);
+  drawCostRow('Tax Amount', formatMoney(changeOrder.tax_amount));
+  drawCostRow('Total', formatMoney(changeOrder.total_amount), true);
+
+  const footerY = 40;
+  page.drawLine({
+    start: { x: margin, y: footerY + 14 },
+    end: { x: width - margin, y: footerY + 14 },
+    thickness: 0.8,
+    color: rgb(0.82, 0.82, 0.82),
   });
-  cursorY -= 18;
 
-  drawLabelValue('Labor', formatMoney(changeOrder.labor_cost));
-  drawLabelValue('Materials', formatMoney(changeOrder.material_cost));
-  drawLabelValue('Other', formatMoney(changeOrder.other_cost));
-  drawLabelValue('Subtotal', formatMoney(changeOrder.subtotal));
-  drawLabelValue('Markup %', `${toNumber(changeOrder.markup_percent).toFixed(2)}%`);
-  drawLabelValue('Markup Amount', formatMoney(changeOrder.markup_amount));
-  drawLabelValue('Tax %', `${toNumber(changeOrder.tax_percent).toFixed(2)}%`);
-  drawLabelValue('Tax Amount', formatMoney(changeOrder.tax_amount));
-
-  page.drawText(`Total: ${formatMoney(changeOrder.total_amount)}`, {
-    x: margin,
-    y: cursorY,
-    size: 13,
-    font: helveticaBold,
-    color: rgb(0.05, 0.05, 0.05),
+  page.drawText(
+    'This change order is valid only when approved by the customer or authorized representative.',
+    {
+      x: margin,
+      y: footerY,
+      size: 11,
+      font: helvetica,
+      color: rgb(0.32, 0.32, 0.32),
   });
 
   const pdfBytes = await pdfDoc.save();

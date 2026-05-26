@@ -33,6 +33,18 @@ type ChangeOrderApproval = {
     job_number: string | null;
     address: string | null;
   } | null;
+  company?: {
+    name: string | null;
+    phone: string | null;
+    email: string | null;
+    address: string | null;
+  } | null;
+  companies?: {
+    name: string | null;
+    phone: string | null;
+    email: string | null;
+    address: string | null;
+  } | null;
 };
 
 type ApprovalFetchResponse = {
@@ -61,8 +73,30 @@ function formatMoney(value: number | string | null | undefined) {
   return usdFormatter.format(Number.isFinite(parsed) ? parsed : 0);
 }
 
+function formatDate(value: string | null | undefined) {
+  if (!value) {
+    return '—';
+  }
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return '—';
+  }
+
+  return parsed.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
+}
+
 function safeText(value: string | null | undefined) {
-  return value && value.trim().length > 0 ? value : 'N/A';
+  return value && value.trim().length > 0 ? value : '—';
+}
+
+function formatStatus(value: string | null | undefined) {
+  const normalized = safeText(value);
+  return normalized === '—' ? normalized : normalized.replace(/_/g, ' ');
 }
 
 export default function ApprovalPage({ params }: ApprovalPageProps) {
@@ -191,75 +225,98 @@ export default function ApprovalPage({ params }: ApprovalPageProps) {
     );
   }
 
+  const companyInfo = changeOrder.company ?? changeOrder.companies ?? null;
+  const hasCompanyInfo = Boolean(
+    companyInfo &&
+      (companyInfo.name || companyInfo.address || companyInfo.phone || companyInfo.email)
+  );
+
   return (
     <main className="min-h-screen bg-slate-100 px-4 py-10 sm:px-6">
-      <div className="mx-auto max-w-3xl space-y-6">
-        <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+      <div className="mx-auto max-w-4xl space-y-6">
+        <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
             Change Order Approval
           </p>
-          <h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">
-            Demo Contractor
+          <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">
+            {safeText(changeOrder.title)}
           </h1>
 
-          <dl className="mt-6 grid gap-3 text-sm text-slate-700 sm:grid-cols-2">
-            <div>
-              <dt className="font-medium text-slate-500">Change Order Number</dt>
-              <dd>{safeText(changeOrder.change_order_number)}</dd>
+          {hasCompanyInfo ? (
+            <div className="mt-5 rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+              <p className="font-semibold text-slate-900">{safeText(companyInfo?.name)}</p>
+              {companyInfo?.address ? (
+                <p className="mt-1 whitespace-pre-line text-slate-600">{safeText(companyInfo.address)}</p>
+              ) : null}
+              <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-slate-600">
+                {companyInfo?.phone ? <span>{safeText(companyInfo.phone)}</span> : null}
+                {companyInfo?.email ? <span>{safeText(companyInfo.email)}</span> : null}
+              </div>
             </div>
-            <div>
-              <dt className="font-medium text-slate-500">Status</dt>
-              <dd className="capitalize">{safeText(changeOrder.status)}</dd>
+          ) : null}
+
+          <dl className="mt-6 grid gap-4 text-sm sm:grid-cols-3">
+            <div className="rounded-md border border-slate-200 bg-white px-3 py-2">
+              <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Change Order #
+              </dt>
+              <dd className="mt-1 font-medium text-slate-800">
+                {safeText(changeOrder.change_order_number)}
+              </dd>
             </div>
-            <div className="sm:col-span-2">
-              <dt className="font-medium text-slate-500">Title</dt>
-              <dd>{safeText(changeOrder.title)}</dd>
+            <div className="rounded-md border border-slate-200 bg-white px-3 py-2">
+              <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Status</dt>
+              <dd className="mt-1 font-medium capitalize text-slate-800">
+                {formatStatus(changeOrder.status)}
+              </dd>
+            </div>
+            <div className="rounded-md border border-slate-200 bg-white px-3 py-2">
+              <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Created</dt>
+              <dd className="mt-1 font-medium text-slate-800">{formatDate(changeOrder.created_at)}</dd>
             </div>
           </dl>
         </section>
 
-        <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-900">Customer</h2>
-          <dl className="mt-4 space-y-2 text-sm text-slate-700">
-            <div>
-              <dt className="font-medium text-slate-500">Name</dt>
-              <dd>{safeText(changeOrder.customers?.name)}</dd>
-            </div>
-            <div>
-              <dt className="font-medium text-slate-500">Contact</dt>
-              <dd>{safeText(changeOrder.customers?.contact_name)}</dd>
-            </div>
-            <div>
-              <dt className="font-medium text-slate-500">Email</dt>
-              <dd>{safeText(changeOrder.customers?.email)}</dd>
-            </div>
-            <div>
-              <dt className="font-medium text-slate-500">Phone</dt>
-              <dd>{safeText(changeOrder.customers?.phone)}</dd>
-            </div>
-            <div>
-              <dt className="font-medium text-slate-500">Billing Address</dt>
-              <dd className="whitespace-pre-line">{safeText(changeOrder.customers?.billing_address)}</dd>
-            </div>
-          </dl>
-        </section>
+        <section className="grid gap-4 sm:grid-cols-2">
+          <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h2 className="text-lg font-semibold text-slate-900">Customer Information</h2>
+            <dl className="mt-4 space-y-2 text-sm text-slate-700">
+              <div>
+                <dt className="font-medium text-slate-500">Customer name</dt>
+                <dd>{safeText(changeOrder.customers?.name)}</dd>
+              </div>
+              <div>
+                <dt className="font-medium text-slate-500">Contact</dt>
+                <dd>{safeText(changeOrder.customers?.contact_name)}</dd>
+              </div>
+              <div>
+                <dt className="font-medium text-slate-500">Email</dt>
+                <dd>{safeText(changeOrder.customers?.email)}</dd>
+              </div>
+              <div>
+                <dt className="font-medium text-slate-500">Phone</dt>
+                <dd>{safeText(changeOrder.customers?.phone)}</dd>
+              </div>
+            </dl>
+          </div>
 
-        <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-900">Job</h2>
-          <dl className="mt-4 space-y-2 text-sm text-slate-700">
-            <div>
-              <dt className="font-medium text-slate-500">Name</dt>
-              <dd>{safeText(changeOrder.jobs?.name)}</dd>
-            </div>
-            <div>
-              <dt className="font-medium text-slate-500">Job Number</dt>
-              <dd>{safeText(changeOrder.jobs?.job_number)}</dd>
-            </div>
-            <div>
-              <dt className="font-medium text-slate-500">Address</dt>
-              <dd className="whitespace-pre-line">{safeText(changeOrder.jobs?.address)}</dd>
-            </div>
-          </dl>
+          <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h2 className="text-lg font-semibold text-slate-900">Job Information</h2>
+            <dl className="mt-4 space-y-2 text-sm text-slate-700">
+              <div>
+                <dt className="font-medium text-slate-500">Job name</dt>
+                <dd>{safeText(changeOrder.jobs?.name)}</dd>
+              </div>
+              <div>
+                <dt className="font-medium text-slate-500">Job number</dt>
+                <dd>{safeText(changeOrder.jobs?.job_number)}</dd>
+              </div>
+              <div>
+                <dt className="font-medium text-slate-500">Job address</dt>
+                <dd className="whitespace-pre-line">{safeText(changeOrder.jobs?.address)}</dd>
+              </div>
+            </dl>
+          </div>
         </section>
 
         <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -272,36 +329,34 @@ export default function ApprovalPage({ params }: ApprovalPageProps) {
         <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
           <h2 className="text-lg font-semibold text-slate-900">Cost Breakdown</h2>
 
-          <dl className="mt-4 grid gap-2 text-sm text-slate-700 sm:grid-cols-2">
-            <div className="flex items-center justify-between rounded-md bg-slate-50 px-3 py-2">
+          <dl className="mt-4 divide-y divide-slate-200 rounded-lg border border-slate-200 bg-white">
+            <div className="flex items-center justify-between px-4 py-3 text-sm text-slate-700">
               <dt>Labor</dt>
               <dd className="font-medium">{formatMoney(changeOrder.labor_cost)}</dd>
             </div>
-            <div className="flex items-center justify-between rounded-md bg-slate-50 px-3 py-2">
+            <div className="flex items-center justify-between px-4 py-3 text-sm text-slate-700">
               <dt>Materials</dt>
               <dd className="font-medium">{formatMoney(changeOrder.material_cost)}</dd>
             </div>
-            <div className="flex items-center justify-between rounded-md bg-slate-50 px-3 py-2">
+            <div className="flex items-center justify-between px-4 py-3 text-sm text-slate-700">
               <dt>Other</dt>
               <dd className="font-medium">{formatMoney(changeOrder.other_cost)}</dd>
             </div>
-            <div className="flex items-center justify-between rounded-md bg-slate-50 px-3 py-2">
+            <div className="flex items-center justify-between px-4 py-3 text-sm text-slate-700">
               <dt>Subtotal</dt>
               <dd className="font-medium">{formatMoney(changeOrder.subtotal)}</dd>
             </div>
-            <div className="flex items-center justify-between rounded-md bg-slate-50 px-3 py-2">
+            <div className="flex items-center justify-between px-4 py-3 text-sm text-slate-700">
               <dt>Markup</dt>
               <dd className="font-medium">{formatMoney(changeOrder.markup_amount)}</dd>
             </div>
-            <div className="flex items-center justify-between rounded-md bg-slate-50 px-3 py-2">
+            <div className="flex items-center justify-between px-4 py-3 text-sm text-slate-700">
               <dt>Tax</dt>
               <dd className="font-medium">{formatMoney(changeOrder.tax_amount)}</dd>
             </div>
-            <div className="flex items-center justify-between rounded-md bg-slate-100 px-3 py-2 sm:col-span-2">
-              <dt>Total</dt>
-              <dd className="text-base font-semibold text-slate-900">
-                {formatMoney(changeOrder.total_amount)}
-              </dd>
+            <div className="flex items-center justify-between bg-slate-900 px-4 py-3 text-sm text-white">
+              <dt className="font-semibold">Total</dt>
+              <dd className="text-lg font-semibold">{formatMoney(changeOrder.total_amount)}</dd>
             </div>
           </dl>
         </section>

@@ -2,6 +2,10 @@ import { NextResponse } from 'next/server';
 
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 
+function isSafeInternalPath(path: unknown): path is string {
+  return typeof path === 'string' && path.startsWith('/') && !path.startsWith('//');
+}
+
 export async function POST(request: Request) {
   let body: unknown;
 
@@ -24,6 +28,10 @@ export async function POST(request: Request) {
     typeof (body as { password?: unknown }).password === 'string'
       ? (body as { password: string }).password
       : '';
+  const next =
+    typeof body === 'object' && body !== null && 'next' in body
+      ? (body as { next?: unknown }).next
+      : undefined;
 
   if (!email || !password) {
     return NextResponse.json(
@@ -43,6 +51,10 @@ export async function POST(request: Request) {
       { ok: false, message: error?.message ?? 'Sign-in failed' },
       { status: 401 }
     );
+  }
+
+  if (isSafeInternalPath(next)) {
+    return NextResponse.redirect(new URL(next, request.url), { status: 303 });
   }
 
   return NextResponse.json({

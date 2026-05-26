@@ -40,6 +40,8 @@ function LoginFormContent() {
       headers: {
         'Content-Type': 'application/json',
       },
+      credentials: 'same-origin',
+      cache: 'no-store',
       body: JSON.stringify({
         email,
         password,
@@ -57,6 +59,8 @@ function LoginFormContent() {
       return;
     }
 
+    router.refresh();
+
     const nextParam = searchParams.get('next');
     if (isSafeInternalPath(nextParam)) {
       router.push(nextParam);
@@ -64,7 +68,10 @@ function LoginFormContent() {
     }
 
     try {
-      const response = await fetch('/api/auth/landing');
+      const response = await fetch('/api/auth/landing', {
+        credentials: 'same-origin',
+        cache: 'no-store',
+      });
       const result = (await response.json()) as {
         ok?: boolean;
         next?: string;

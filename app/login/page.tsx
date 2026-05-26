@@ -4,8 +4,6 @@ import { Suspense, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 
-import { supabase } from '@/lib/supabase/client';
-
 function isSafeInternalPath(path: string | null | undefined): path is string {
   return typeof path === 'string' && path.startsWith('/') && !path.startsWith('//');
 }
@@ -37,13 +35,24 @@ function LoginFormContent() {
     setLoading(true);
     setErrorMessage('');
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
+    const response = await fetch('/api/auth/sign-in', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        email,
+        password,
+      }),
     });
 
-    if (error) {
-      setErrorMessage(error.message);
+    const result = (await response.json()) as {
+      ok?: boolean;
+      message?: string;
+    };
+
+    if (!response.ok || !result.ok) {
+      setErrorMessage(result.message || 'Unable to sign in.');
       setLoading(false);
       return;
     }

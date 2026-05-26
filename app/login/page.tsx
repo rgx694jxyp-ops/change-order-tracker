@@ -29,6 +29,25 @@ function LoginFormContent() {
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
+  async function waitForServerAuth() {
+    for (let attempt = 0; attempt < 10; attempt += 1) {
+      const response = await fetch('/api/auth/me', {
+        credentials: 'same-origin',
+        cache: 'no-store',
+      });
+
+      const result = await response.json();
+
+      if (response.ok && result?.authenticated === true) {
+        return true;
+      }
+
+      await new Promise((resolve) => window.setTimeout(resolve, 150));
+    }
+
+    return false;
+  }
+
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setLoading(true);
@@ -53,12 +72,26 @@ function LoginFormContent() {
     });
 
     if (response.status === 303 || response.type === 'opaqueredirect') {
+      const isAuthenticated = await waitForServerAuth();
+      if (!isAuthenticated) {
+        setErrorMessage('Signed in, but the session was not ready. Please try again.');
+        setLoading(false);
+        return;
+      }
+
       window.location.assign(redirectTarget);
       return;
     }
 
     if (response.redirected) {
-      window.location.assign(response.url);
+      const isAuthenticated = await waitForServerAuth();
+      if (!isAuthenticated) {
+        setErrorMessage('Signed in, but the session was not ready. Please try again.');
+        setLoading(false);
+        return;
+      }
+
+      window.location.assign(redirectTarget);
       return;
     }
 
@@ -69,6 +102,13 @@ function LoginFormContent() {
 
     if (!response.ok || !result.ok) {
       setErrorMessage(result.message || 'Unable to sign in.');
+      setLoading(false);
+      return;
+    }
+
+    const isAuthenticated = await waitForServerAuth();
+    if (!isAuthenticated) {
+      setErrorMessage('Signed in, but the session was not ready. Please try again.');
       setLoading(false);
       return;
     }

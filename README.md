@@ -120,3 +120,34 @@ http://localhost:3000
 - Mark approved change orders as invoiced
 - Stripe billing
 - Deployment to Vercel
+
+## Vercel Deployment Checklist
+
+1. Required Vercel environment variables:
+	- NEXT_PUBLIC_SUPABASE_URL
+	- NEXT_PUBLIC_SUPABASE_ANON_KEY
+	- SUPABASE_SERVICE_ROLE_KEY
+	- RESEND_API_KEY
+	- APP_BASE_URL
+
+2. Notes:
+	- NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY are browser-safe.
+	- SUPABASE_SERVICE_ROLE_KEY must stay server-only.
+	- RESEND_API_KEY must stay server-only.
+	- APP_BASE_URL should be the deployed Vercel URL.
+
+3. Build settings:
+	- Framework: Next.js
+	- Install command: npm install
+	- Build command: npm run build
+	- Output: Next.js default
+
+4. Post-deployment smoke tests:
+	- Open /
+	- Sign up / log in
+	- Confirm /dashboard loads
+	- Confirm /customers, /jobs, /change-orders, /settings load
+	- Send an approval email
+	- Open a public approval link without logging in
+	- Open a PDF
+	- Upload and open an attachment through signed URL flow

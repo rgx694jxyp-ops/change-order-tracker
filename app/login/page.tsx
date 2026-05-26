@@ -6,8 +6,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 
 import { supabase } from '@/lib/supabase/client';
 
-function isSafeInternalPath(path: string | null | undefined) {
-  return Boolean(path && path.startsWith('/') && !path.startsWith('//'));
+function isSafeInternalPath(path: string | null | undefined): path is string {
+  return typeof path === 'string' && path.startsWith('/') && !path.startsWith('//');
 }
 
 export default function LoginPage() {
